@@ -1,0 +1,221 @@
+﻿@page "/knihovna"
+@using ZkouskaVrsecky.Models
+@inject IJSRuntime JS
+
+<h3>Knihovna</h3>
+<button @onclick="pridatKnihu" class="btn btn-primary mb-2"> Přidat knihu</button>
+@if (novaKniha != null)
+{
+    <div class="form-group">
+        <label>Název knihy:</label>
+        <input @bind="novaKniha.Nazev" class="form-control" />
+        <label>Autor:</label>
+        <input @bind="novaKniha.Autor" class="form-control" />
+        <label>Rok vydání:</label>
+        <input @bind="novaKniha.RokVydani" class="form-control" />
+        <label>Žánr:</label>
+        <select @bind="novaKniha.Zanr" class="form-control">
+            <option value="scifi">Sci-Fi</option>
+            <option value="fantasy">Fantasy</option>
+            <option value="román">Román</option>
+            <option value="detektivka">Detektivka</option>
+        </select>
+        <label>ISBN:</label>
+        <input @bind="novaKniha.Isbn" class="form-control" />
+        <label>Počet kusů:</label>
+        <input @bind="novaKniha.PocetKusu" type="number" class="form-control" />
+        <label>Umístění - Police:</label>
+        <input @bind="novaKniha.Umisteni.Police" class="form-control" />
+        <label>Umístění - Patro:</label>
+        <input @bind="novaKniha.Umisteni.Patro" class="form-control" />
+        <label>Umístění - Číslo:</label>
+        <input @bind="novaKniha.Umisteni.Cislo" class="form-control" />
+        <button @onclick="potvrditPridaniKnihy" class="btn btn-success mt-2 mb-2">Potvrdit</button>
+    </div>
+}
+<div>
+    <table class="table table-striped table-hover table-bordered">
+        <thead>
+            <tr>
+                <th>Název knihy</th>
+                <th>Autor</th>
+                <th>Rok vydání</th>
+                <th>Žánr</th>
+                <th>ISBN</th>
+                <th>Počet kusů</th>
+                <th>Umístění</th>
+                <th>Akce</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (Kniha kniha in knihy)
+            {
+                @if (editovatelnaKniha == kniha)
+                {
+                    <tr>
+                        <td><input @bind="editovatelnaKniha.Nazev" class="form-control" /></td>
+                        <td><input @bind="editovatelnaKniha.Autor" class="form-control" /></td>
+                        <td><input @bind="editovatelnaKniha.RokVydani" class="form-control" /></td>
+                        <td>
+                            <select @bind="editovatelnaKniha.Zanr" class="form-control">
+                                <option value="scifi">Sci-Fi</option>
+                                <option value="fantasy">Fantasy</option>
+                                <option value="román">Román</option>
+                                <option value="detektivka">Detektivka</option>
+                            </select>
+                        </td>
+                        <td><input @bind="editovatelnaKniha.Isbn" class="form-control" /></td>
+                        <td><input @bind="editovatelnaKniha.PocetKusu" type="number" class="form-control" /></td>
+                        <td>
+                            <input @bind="editovatelnaKniha.Umisteni.Police" class="form-control" placeholder="Police" />
+                            <input @bind="editovatelnaKniha.Umisteni.Patro" class="form-control" placeholder="Patro" />
+                            <input @bind="editovatelnaKniha.Umisteni.Cislo" class="form-control" placeholder="Číslo" />
+                        </td>
+                        <td>
+                            <button @onclick="ulozitKnihu" class="btn btn-success">Uložit</button>
+                            <button @onclick="zrusitEditaci" class="btn btn-secondary">Zrušit</button>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    <tr>
+                        <td>@kniha.Nazev</td>
+                        <td>@kniha.Autor</td>
+                        <td>@kniha.RokVydani</td>
+                        <td>@kniha.Zanr</td>
+                        <td>@kniha.Isbn</td>
+                        <td>@kniha.PocetKusu</td>
+                        <td>@kniha.Umisteni.Police, @kniha.Umisteni.Patro, @kniha.Umisteni.Cislo</td>
+                        <td>
+                            <button @onclick="() => editovatKnihu(kniha)" class="btn btn-primary">Editace</button>
+                            <button @onclick="() => smazatKnihu(kniha)" class="btn btn-danger">Smazat</button>
+                            <button @onclick="() => pujcitKnihu(kniha)" class="btn btn-success">Půjčit</button>
+                            <button @onclick="() => vratitKnihu(kniha)" class="btn btn-warning">Vrátit</button>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+    <h4>Celkem knih v knihovně: @knihy.Sum(k => k.PocetKusu)</h4>
+    <table class="table table-striped table-hover table-bordered">
+        <thead>
+            <tr>
+                <th>Jméno půjčovatele</th>
+                <th>Název knihy</th>
+                <th>Čas půjčení</th>
+                <th>Čas max. vrácení</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (ZaznamPujcek zaznam in zaznamPujcek)
+            {
+                <tr>
+                    <td>@zaznam.JmenoPujcil</td>
+                    <td>@zaznam.NazevK</td>
+                    <td>@zaznam.DatumPujcky</td>
+                    <td>@zaznam.DatumMaxVraceni</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<Kniha> knihy = new List<Kniha>();
+    private List<ZaznamPujcek> zaznamPujcek = new List<ZaznamPujcek>();
+    private Kniha editovatelnaKniha;
+    private Kniha novaKniha;
+
+    protected override void OnInitialized()
+    {
+        knihy.Add(new Kniha("Harry Potter", "J.K. Rowling", "2001", "scifi", "ISBN1", 5) { Umisteni = new Umisteni("A", "1", "101") });
+        knihy.Add(new Kniha("Pán prstenů", "J.R.R. Tolkien", "2002", "fantasy", "ISBN2", 3) { Umisteni = new Umisteni("B", "2", "202") });
+    }
+
+    private void pridatKnihu()
+    {
+        novaKniha = new Kniha() { Umisteni = new Umisteni() };
+    }
+
+    private void potvrditPridaniKnihy()
+    {
+        if (novaKniha != null)
+        {
+            knihy.Add(novaKniha);
+            novaKniha = null;
+        }
+    }
+
+    private void smazatKnihu(Kniha kniha)
+    {
+        knihy.Remove(kniha);
+    }
+
+    private void editovatKnihu(Kniha kniha)
+    {
+        editovatelnaKniha = kniha;
+    }
+
+    private async Task pujcitKnihu(Kniha kniha)
+    {
+        if (kniha.PocetKusu >= 1)
+        {
+            string jmenoPujcovatele = await JS.InvokeAsync<string>("prompt", "Zadejte vaše jméno: ");
+            if (!string.IsNullOrEmpty(jmenoPujcovatele))
+            {
+                kniha.PocetKusu--;
+                zaznamPujcek.Add(new ZaznamPujcek(jmenoPujcovatele, kniha.Nazev, DateTime.Now));
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "Jméno je povinné!");
+            }
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "Není dostatek kusů k půjčení!");
+        }
+    }
+
+    private async Task vratitKnihu(Kniha kniha)
+    {
+        string knihaPujcovatel = await JS.InvokeAsync<string>("prompt", "Zadejte vaše jméno či název knihy, kterou jste si půjčil:");
+        if (!string.IsNullOrEmpty(knihaPujcovatel))
+        {
+            var zaznamyKeSmazani = zaznamPujcek
+                .Where(zaznam => zaznam.NazevK.Equals(kniha.Nazev, StringComparison.OrdinalIgnoreCase) &&
+                                 (zaznam.NazevK.Equals(knihaPujcovatel, StringComparison.OrdinalIgnoreCase) ||
+                                  zaznam.JmenoPujcil.Equals(knihaPujcovatel, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
+            if (zaznamyKeSmazani.Any())
+            {
+                kniha.PocetKusu += zaznamyKeSmazani.Count;
+                foreach (var zaznam in zaznamyKeSmazani)
+                {
+                    zaznamPujcek.Remove(zaznam);
+                }
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "Nebyly nalezeny žádné záznamy k vrácení.");
+            }
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("alert", "Jméno či název knihy je povinné!");
+        }
+    }
+
+    private void ulozitKnihu()
+    {
+        editovatelnaKniha = null;
+    }
+
+    private void zrusitEditaci()
+    {
+        editovatelnaKniha = null;
+    }
+}
